@@ -6,7 +6,8 @@ export const ROW_COLORS = [
 ];
 
 export const ANIMATIONS = [
-  "anim-stretch", "anim-sway","anim-pulse",
+  // "anim-stretch", "anim-sway",
+  "anim-pulse",
   //  "anim-spin",
   // "anim-wiggle", "anim-bounce", "anim-shake"
 ];
