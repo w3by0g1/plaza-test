@@ -249,7 +249,7 @@ function App() {
       return;
     }
     const handleWheel = (e) => {
-      if (e.target.closest('.section-dropdown')) return;
+      if (e.target.closest(".section-dropdown")) return;
       e.preventDefault();
       scrollVelRef.current += e.deltaY * 0.00007;
       startDepthLoop();
@@ -595,7 +595,7 @@ function App() {
           const wW = window.innerWidth;
           const cx = wW / 2;
           const depthTop = 0;
-          const depthBottom = 120;
+          const depthBottom = 50;
           const depthRange = wH - depthTop - depthBottom;
 
           const computed = items.map(({ mii, isVisible }) => {
@@ -607,9 +607,9 @@ function App() {
               const scale = 0.25 + ez * 0.5;
               const colorIndex = Math.min(9, Math.round((1 - ez) * 9));
               const color = ROW_COLORS[colorIndex];
-              const ty = depthTop + Math.pow(ez, 3) * depthRange;
+              const ty = depthTop + Math.pow(ez, 4) * depthRange;
               // Narrow X toward center for far characters + mouse parallax
-              const narrowFactor = 1 + ez * 1.7;
+              const narrowFactor = 1 + ez * 1.5;
               const parallaxX = parallax.x * (1 - ez) * -40;
               const tx = cx + (mii.homeX - cx) * narrowFactor + parallaxX;
               // Shadow: stronger for close
@@ -629,6 +629,7 @@ function App() {
                 ty,
                 ez,
                 zOpacity,
+                blurAmount: 0,
               };
             }
 
@@ -649,12 +650,22 @@ function App() {
               ty,
               ez: 0,
               zOpacity: 1,
+              blurAmount: 0,
             };
           });
 
           // Sort by depth (only in unfiltered mode)
           if (!hasFilter) {
             computed.sort((a, b) => a.ez - b.ez);
+
+            // Depth blur: blurry at top (far), sharp from bottom 33% onward
+            for (let i = 0; i < computed.length; i++) {
+              const a = computed[i];
+              if (!a.isVisible) continue;
+              const sharpThreshold = 0.825;
+              a.blurAmount =
+                a.ez >= sharpThreshold ? 0 : (1 - a.ez / sharpThreshold) * 20;
+            }
           }
 
           return computed.map(
@@ -666,6 +677,7 @@ function App() {
               tx,
               ty,
               zOpacity,
+              blurAmount,
             }) => (
               <div
                 key={mii.id}
@@ -673,6 +685,7 @@ function App() {
                 style={{
                   transform: `translate(calc(${tx}px - 50%), calc(${ty}px - 50%)) scale(${scale})`,
                   opacity: zOpacity,
+                  filter: blurAmount > 0 ? `blur(${blurAmount}px)` : "none",
                 }}
                 onMouseEnter={() => handleMouseEnter(mii.id)}
               >
