@@ -64,6 +64,13 @@ const createMiis = () => {
     baseZValues[item.i] = rank / Math.max(1, sortedByY.length - 1);
   });
 
+  // Shuffle characters so each DJ gets a random one
+  const shuffledChars = [...CHARACTERS];
+  for (let i = shuffledChars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledChars[i], shuffledChars[j]] = [shuffledChars[j], shuffledChars[i]];
+  }
+
   return DJS.map((dj, i) => {
     const { x: homeX, y: homeY } = positions[i];
     // Depth based on Y position: bottom = close (large, dark), top = far (small, light)
@@ -78,7 +85,7 @@ const createMiis = () => {
       genres: dj.genres,
       location: dj.location,
       bpm: dj.bpm,
-      character: CHARACTERS[i % CHARACTERS.length],
+      character: shuffledChars[i % shuffledChars.length],
       x: homeX,
       y: homeY,
       homeX,

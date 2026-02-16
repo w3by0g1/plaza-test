@@ -1,7 +1,7 @@
-export const CHARACTERS = [1, 2, 3, 4, 5, 6, 7];
+export const CHARACTERS = Array.from({ length: 103 }, (_, i) => i + 1);
 
 export const ROW_COLORS = [
-  "#FF0099", "#FF1FA8", "#FF3FB7", "#FF5FC6", "#FF7FD5",
+  "#FF0000", "#FF1FA8", "#FF3FB7", "#FF5FC6", "#FF7FD5",
   "#FF9FE4", "#FFBFEE", "#FFCFF3", "#FFDFF8", "#FFEFFC",
 ];
 
