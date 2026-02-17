@@ -251,7 +251,7 @@ function App() {
     const handleWheel = (e) => {
       if (e.target.closest(".section-dropdown")) return;
       e.preventDefault();
-      scrollVelRef.current += e.deltaY * 0.00007;
+      scrollVelRef.current += e.deltaY * 0.00002;
       startDepthLoop();
     };
     window.addEventListener("wheel", handleWheel, { passive: false });
@@ -595,7 +595,7 @@ function App() {
           const wW = window.innerWidth;
           const cx = wW / 2;
           const depthTop = 0;
-          const depthBottom = 50;
+          const depthBottom = 10;
           const depthRange = wH - depthTop - depthBottom;
 
           const computed = items.map(({ mii, isVisible }) => {
@@ -607,10 +607,10 @@ function App() {
               const scale = 0.25 + ez * 0.5;
               const colorIndex = Math.min(9, Math.round((1 - ez) * 9));
               const color = ROW_COLORS[colorIndex];
-              const ty = depthTop + Math.pow(ez, 4) * depthRange;
+              const ty = depthTop + Math.pow(ez, 5) * depthRange;
               // Narrow X toward center for far characters + mouse parallax
-              const narrowFactor = 1 + ez * 1.5;
-              const parallaxX = parallax.x * (1 - ez) * -40;
+              const narrowFactor = 1 + ez * 1;
+              const parallaxX = parallax.x * (1 - ez) * -200;
               const tx = cx + (mii.homeX - cx) * narrowFactor + parallaxX;
               // Shadow: stronger for close
               const shadowOpacity = (0.1 + ez * 0.4).toFixed(2);
@@ -636,7 +636,7 @@ function App() {
             // --- Filtered / grid mode (flat, no perspective) ---
             const scale = isFiltered ? gridScale * 0.5 : 1;
             const color = isFiltered ? ROW_COLORS[0] : ROW_COLORS[0];
-            const shadowOpacity = "0.3";
+            const shadowOpacity = "0.4";
             const tx = mii.x;
             const ty = mii.y;
             return {
