@@ -19,7 +19,9 @@ export default function SearchBar({
 
   return (
     <div className="airbnb-search-bar">
-      <div className={`search-section genre-section ${selectedGenres.length > 0 ? "has-selection" : ""}`}>
+      {/* <div
+        className={`search-section genre-section ${selectedGenres.length > 0 ? "has-selection" : ""}`}
+      >
         <div className="section-label">Genre</div>
         <div className="section-dropdown">
           {ALL_GENRES.map((genre) => (
@@ -34,10 +36,14 @@ export default function SearchBar({
         </div>
       </div>
 
-      <div className="section-divider" />
+      <div className="section-divider" /> */}
 
-      <div className={`search-section location-section ${selectedLocations.length > 0 ? "has-selection" : ""}`}>
-        <div className="section-label">Location</div>
+      <div
+        className={`search-section location-section ${selectedLocations.length > 0 ? "has-selection" : ""}`}
+      >
+        <div className="section-label">
+          <img src="./song_row.png" alt="Location" />
+        </div>
         <div className="section-dropdown">
           {ALL_LOCATIONS.map((location) => (
             <button
@@ -51,7 +57,7 @@ export default function SearchBar({
         </div>
       </div>
 
-      <div className="section-divider" />
+      {/* <div className="section-divider" />
 
       <div className={`search-section bpm-section ${!isFullBpmRange ? "has-selection" : ""}`}>
         <div className="section-label">BPM</div>
@@ -61,12 +67,12 @@ export default function SearchBar({
             onBpmRangeChange={onBpmRangeChange}
           />
         </div>
-      </div>
+      </div> */}
 
       {hasFilter && (
-        <button className="clear-button" onClick={onClear}>
+        <div className="clear-button" onClick={onClear}>
           ×
-        </button>
+        </div>
       )}
     </div>
   );

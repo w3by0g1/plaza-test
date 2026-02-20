@@ -7,6 +7,34 @@ export default function useParallax(lerpSpeed = 0.02) {
     const target = { x: 0, y: 0 };
     const current = { x: 0, y: 0 };
     let rafId = null;
+    const isMobile = window.innerWidth <= 768;
+
+    let baseGamma = null;
+    let baseBeta = null;
+
+    const handleOrientation = (e) => {
+      if (baseGamma === null) baseGamma = e.gamma;
+      if (baseBeta === null) baseBeta = e.beta;
+      target.x = Math.max(-1, Math.min(1, (e.gamma - baseGamma) / 30));
+      target.y = Math.max(-1, Math.min(1, (e.beta - baseBeta) / 30));
+    };
+
+    const attachGyro = () => {
+      window.addEventListener("deviceorientation", handleOrientation);
+    };
+
+    const requestGyroOnFirstTap = async () => {
+      if (typeof DeviceOrientationEvent?.requestPermission === "function") {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission === "granted") attachGyro();
+        } catch {}
+      } else {
+        attachGyro(); // Android — no permission needed
+      }
+      // Remove itself after first tap regardless
+      window.removeEventListener("touchstart", requestGyroOnFirstTap);
+    };
 
     const handleMouseMove = (e) => {
       target.x = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -20,10 +48,18 @@ export default function useParallax(lerpSpeed = 0.02) {
       rafId = requestAnimationFrame(lerp);
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
+    if (isMobile) {
+      window.addEventListener("touchstart", requestGyroOnFirstTap);
+    } else {
+      window.addEventListener("mousemove", handleMouseMove);
+    }
+
     rafId = requestAnimationFrame(lerp);
+
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("touchstart", requestGyroOnFirstTap);
+      window.removeEventListener("deviceorientation", handleOrientation);
       if (rafId) cancelAnimationFrame(rafId);
     };
   }, [lerpSpeed]);

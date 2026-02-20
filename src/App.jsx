@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
 
 import DJS, { ALL_BPMS } from "./data/djs";
-import { CHARACTERS, ROW_COLORS, ANIMATIONS } from "./data/characters";
+import {
+  CHARACTERS,
+  CHARACTERS_INVERSE,
+  ROW_COLORS,
+  ANIMATIONS,
+} from "./data/characters";
 
 import SearchBar from "./components/SearchBar";
 import DJSlider from "./components/DJSlider";
@@ -15,7 +20,7 @@ import useParallax from "./hooks/useParallax";
 const createMiis = () => {
   const padding = 180;
   const topPadding = 0;
-  const h = window.innerHeight - topPadding - padding;
+  const h = (window.innerHeight - topPadding - padding) * 3; // 50% taller than screen
   const count = DJS.length;
   const positions = [];
 
@@ -71,6 +76,18 @@ const createMiis = () => {
     [shuffledChars[i], shuffledChars[j]] = [shuffledChars[j], shuffledChars[i]];
   }
 
+  const shuffledInverse = [...CHARACTERS_INVERSE];
+  for (let i = shuffledInverse.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledInverse[i], shuffledInverse[j]] = [
+      shuffledInverse[j],
+      shuffledInverse[i],
+    ];
+  }
+
+  let charIdx = 0;
+  let inverseCharIdx = 0;
+
   return DJS.map((dj, i) => {
     const { x: homeX, y: homeY } = positions[i];
     // Depth based on Y position: bottom = close (large, dark), top = far (small, light)
@@ -79,13 +96,19 @@ const createMiis = () => {
     const homeColorIndex = Math.min(9, Math.round((1 - depth) * 9)); // dark at bottom, light at top
     const baseZ = baseZValues[i]; // evenly distributed 0-1 for depth scrolling
 
+    const isFeatured = dj.bpm === "125-140" && dj.genres.includes("Electronic");
+
+    const character = isFeatured
+      ? shuffledInverse[inverseCharIdx++ % shuffledInverse.length]
+      : shuffledChars[charIdx++ % shuffledChars.length];
+
     return {
       id: i,
       name: dj.name,
       genres: dj.genres,
       location: dj.location,
       bpm: dj.bpm,
-      character: shuffledChars[i % shuffledChars.length],
+      character,
       x: homeX,
       y: homeY,
       homeX,
@@ -191,6 +214,9 @@ function App() {
   const depthLoopRef = useRef(null);
   const depthOffsetRef = useRef(0);
   const parallax = useParallax(0.02);
+  const genre = "Electronic";
+  const location = "London";
+  const bpm = "125-140";
 
   const hasFilter =
     selectedGenres.length > 0 ||
@@ -248,14 +274,46 @@ function App() {
       }
       return;
     }
+    // Desktop: wheel
     const handleWheel = (e) => {
       if (e.target.closest(".section-dropdown")) return;
       e.preventDefault();
       scrollVelRef.current += e.deltaY * 0.00002;
       startDepthLoop();
     };
+
+    // Mobile: touch swipe
+    let lastTouchY = null;
+
+    const handleTouchStart = (e) => {
+      lastTouchY = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e) => {
+      if (lastTouchY === null) return;
+      if (e.target.closest(".section-dropdown")) return;
+      e.preventDefault();
+      const deltaY = lastTouchY - e.touches[0].clientY; // inverted so swipe-up = scroll forward
+      lastTouchY = e.touches[0].clientY;
+      scrollVelRef.current -= deltaY * 0.00005;
+      startDepthLoop();
+    };
+
+    const handleTouchEnd = () => {
+      lastTouchY = null;
+    };
+
     window.addEventListener("wheel", handleWheel, { passive: false });
-    return () => window.removeEventListener("wheel", handleWheel);
+    window.addEventListener("touchstart", handleTouchStart, { passive: false });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
   }, [hasFilter, startDepthLoop]);
 
   // Memoize visible count
@@ -328,6 +386,12 @@ function App() {
         setMiis((prev) => {
           const matchFlags = prev.map((mii) => {
             if (basketedDJNames.has(mii.name)) return false;
+
+            // Always restrict to featured DJs when any filter is active
+            const isFeatured =
+              mii.bpm === "125-140" && mii.genres.includes("Electronic");
+            if (!isFeatured) return false;
+
             const g =
               newGenres.length === 0 ||
               mii.genres.some((x) => newGenres.includes(x));
@@ -431,6 +495,13 @@ function App() {
   const handleMouseEnter = (id) => {
     const anim = ANIMATIONS[Math.floor(Math.random() * ANIMATIONS.length)];
     setHoverAnimations((prev) => ({ ...prev, [id]: anim }));
+  };
+
+  const handleAnimationEnd = (id) => {
+    // On mobile, clear the animation class after it plays once
+    if (window.innerWidth <= 768) {
+      setHoverAnimations((prev) => ({ ...prev, [id]: "" }));
+    }
   };
 
   const handleGenreSelect = (genre) => {
@@ -595,7 +666,7 @@ function App() {
           const wW = window.innerWidth;
           const cx = wW / 2;
           const depthTop = 0;
-          const depthBottom = 10;
+          const depthBottom = window.innerWidth > 768 ? 10 : 0;
           const depthRange = wH - depthTop - depthBottom;
 
           const computed = items.map(({ mii, isVisible }) => {
@@ -604,12 +675,17 @@ function App() {
             if (!hasFilter) {
               // --- Depth-scroll mode ---
               const ez = (((mii.baseZ + depthOffset) % 1) + 1) % 1; // wrap 0-1
-              const scale = 0.25 + ez * 0.5;
+              const scale =
+                (window.innerWidth > 768 ? 0.25 : 0.1) +
+                ez * (window.innerWidth > 768 ? 0.5 : 0.45);
               const colorIndex = Math.min(9, Math.round((1 - ez) * 9));
               const color = ROW_COLORS[colorIndex];
-              const ty = depthTop + Math.pow(ez, 5) * depthRange;
+              const ty =
+                depthTop +
+                Math.pow(ez, window.innerWidth > 768 ? 4 : 8) * depthRange;
               // Narrow X toward center for far characters + mouse parallax
-              const narrowFactor = 1 + ez * 1;
+              const narrowFactor =
+                (window.innerWidth > 768 ? 0.3 : 0.1) + ez * 2;
               const parallaxX = parallax.x * (1 - ez) * -200;
               const tx = cx + (mii.homeX - cx) * narrowFactor + parallaxX;
               // Shadow: stronger for close
@@ -687,7 +763,13 @@ function App() {
                   opacity: zOpacity,
                   filter: blurAmount > 0 ? `blur(${blurAmount}px)` : "none",
                 }}
-                onMouseEnter={() => handleMouseEnter(mii.id)}
+                onMouseEnter={() => {
+                  if (window.innerWidth > 768) handleMouseEnter(mii.id);
+                }}
+                onClick={() => {
+                  if (window.innerWidth <= 768) handleMouseEnter(mii.id);
+                }}
+                onAnimationEnd={() => handleAnimationEnd(mii.id)}
               >
                 <MiiCharacter character={mii.character} />
                 {isVisible && (
