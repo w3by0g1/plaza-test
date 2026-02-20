@@ -34,7 +34,7 @@ const createMiis = () => {
   for (let i = 0; i < count; i++) {
     const band = shuffled[i] / count; // Evenly spaced 0-1
     // Bias toward bottom: characters cluster at bottom, spread out toward top
-    const biasedBand = Math.pow(band, 2);
+    const biasedBand = Math.pow(band, 100);
     // More jitter the further up (less organized at top)
     const jitterAmount = (1 - biasedBand) * 0.4 + 0.1;
     const jitter = (Math.random() - 0.5) * (h / count) * jitterAmount * 4;
