@@ -666,14 +666,14 @@ function App() {
           const wW = window.innerWidth;
           const cx = wW / 2;
           const depthTop = 0;
-          const depthBottom = window.innerWidth > 768 ? 10 : 0;
+          const depthBottom = window.innerWidth > 768 ? 0 : 0;
           const depthRange = wH - depthTop - depthBottom;
 
           const computed = items.map(({ mii, isVisible }) => {
             const isFiltered = hasFilter && isVisible;
 
             if (!hasFilter) {
-              // --- Depth-scroll mode ---
+              // --- Depth-scroll mode --
               const ez = (((mii.baseZ + depthOffset) % 1) + 1) % 1; // wrap 0-1
               const scale =
                 (window.innerWidth > 768 ? 0.25 : 0.1) +
@@ -682,10 +682,10 @@ function App() {
               const color = ROW_COLORS[colorIndex];
               const ty =
                 depthTop +
-                Math.pow(ez, window.innerWidth > 768 ? 4 : 8) * depthRange;
+                Math.pow(ez, window.innerWidth > 768 ? 7 : 8) * depthRange;
               // Narrow X toward center for far characters + mouse parallax
               const narrowFactor =
-                (window.innerWidth > 768 ? 0.3 : 0.1) + ez * 2;
+                (window.innerWidth > 768 ? 0.1 : 0.1) + ez * 2;
               const parallaxX = parallax.x * (1 - ez) * -200;
               const tx = cx + (mii.homeX - cx) * narrowFactor + parallaxX;
               // Shadow: stronger for close

@@ -234,7 +234,7 @@ body {
   padding: 12px 30px;
   font-size: 17px;
   font-weight: 500;
-  font-family: 'NHaas Grotesk', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+  font-family: 'Rigid Square', sans-serif;
   background: linear-gradient(to right, #e9e9e9 , #bdbdbd 6%, #bdbdbd 50%, #e9e9e9);
   color: #ffffff;
   border: none;
@@ -244,6 +244,8 @@ body {
   cursor: pointer;
   transition: background-color 0.15s ease;
   white-space: nowrap;
+  text-shadow: 0 1.5px 3px rgba(0,0,0,1
+  0.2);
 }
 
 .dropdown-btn:last-child {
