@@ -270,6 +270,12 @@ body {
   color: #ff385c;
 }
 
+.dropdown-btn.disabled {
+  color: #d4d4d4;
+  cursor: default !important;
+  pointer-events: none;
+}
+
 .dropdown-btn.top:not(.active):hover {
   background: #ffe4ec;
 }
