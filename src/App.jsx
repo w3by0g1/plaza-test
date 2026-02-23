@@ -15,16 +15,98 @@ import MiiCharacter from "./components/MiiCharacter";
 import BasketPanel from "./components/BasketPanel";
 import useParallax from "./hooks/useParallax";
 
+// --- Flag shadow component ---
+// Rendered as a flat plane under each filtered character using CSS 3D perspective
+
+// --- Flag mapping by location ---
+const LOCATION_FLAGS = {
+  Berlin: "./FLAG.svg", // France flag — swap for DE when you have it
+  Paris: "./FLAG.svg", // France ✓
+  London: "./FLAG=GB.svg", // Great Britain ✓
+  "New York": "./FLAG=US.svg", // USA ✓
+  "Los Angeles": "./FLAG=US.svg", // USA ✓
+  Melbourne: "./FLAG=AU.svg", // Australia ✓
+  Sydney: "./FLAG=AU.svg", // Australia ✓
+  "São Paulo": "./FLAG=BR.svg", // Brazil ✓
+  "Buenos Aires": null, // Argentina — no flag yet
+  Lisbon: null, // Portugal — no flag yet
+  Barcelona: null, // Spain — no flag yet
+  Montreal: null, // Canada — no flag yet
+  Tokyo: null, // Japan — no flag yet
+  Mumbai: null, // India — no flag yet
+  Singapore: null, // Singapore — no flag yet
+  Nairobi: null, // Kenya — no flag yet
+};
+
+// --- Flag shadow component ---
+const FlagShadow = ({ scale = 1, location = "" }) => {
+  const flagW = 72;
+  const flagH = 48;
+  const src = LOCATION_FLAGS[location];
+  if (!src) return null; // no flag for this location yet
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: "-18px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        perspective: "120px",
+        perspectiveOrigin: "50% 0%",
+        pointerEvents: "none",
+        zIndex: -1,
+      }}
+    >
+      {/* Flag image */}
+      <img
+        src={src}
+        alt={location}
+        style={{
+          width: flagW,
+          height: flagH,
+          display: "block",
+          transformOrigin: "50% 0%",
+          transform: `rotateX(45deg) scaleX(${1.1 / scale})`,
+          opacity: 0.85,
+          imageRendering: "crisp-edges",
+        }}
+      />
+
+      {/* Gloss overlay */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: flagW,
+          height: flagH,
+          transformOrigin: "50% 0%",
+          transform: `rotateX(45deg) scaleX(${1.1 / scale})`,
+          background: `linear-gradient(
+            160deg,
+            rgba(255,255,255,0.55) 0%,
+            rgba(255,255,255,0.15) 35%,
+            rgba(255,255,255,0.0) 60%,
+            rgba(0,0,0,0.08) 100%
+          )`,
+          borderRadius: "1px",
+          pointerEvents: "none",
+        }}
+      />
+    </div>
+  );
+};
+
 // --- Mii creation ---
 
 const createMiis = () => {
   const padding = 180;
   const topPadding = 0;
-  const h = (window.innerHeight - topPadding - padding) * 3; // 50% taller than screen
+  const h = (window.innerHeight - topPadding - padding) * 3;
   const count = DJS.length;
   const positions = [];
 
-  // Distribute characters biased toward bottom, more scattered at top
   const shuffled = Array.from({ length: count }, (_, i) => i);
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -32,10 +114,8 @@ const createMiis = () => {
   }
 
   for (let i = 0; i < count; i++) {
-    const band = shuffled[i] / count; // Evenly spaced 0-1
-    // Bias toward bottom: characters cluster at bottom, spread out toward top
+    const band = shuffled[i] / count;
     const biasedBand = Math.pow(band, 100);
-    // More jitter the further up (less organized at top)
     const jitterAmount = (1 - biasedBand) * 0.4 + 0.1;
     const jitter = (Math.random() - 0.5) * (h / count) * jitterAmount * 4;
     const homeY = topPadding + biasedBand * h + jitter;
@@ -44,11 +124,9 @@ const createMiis = () => {
       Math.min(window.innerHeight - padding, homeY),
     );
 
-    // Width narrows at bottom (more centered), wider at top
     const depth = clampedY / window.innerHeight;
     const rowWidth = window.innerWidth * (0.55 - depth * 0.2);
     const centerX = window.innerWidth / 2;
-    // Slightly center-biased distribution
     const centerBias = Math.random() * 0.6 + Math.random() * 0.4 - 0.5;
     const offset = centerBias * rowWidth;
     const sidePadding = 100;
@@ -60,7 +138,6 @@ const createMiis = () => {
     positions.push({ x: homeX, y: clampedY });
   }
 
-  // Sort indices by Y to assign evenly-distributed baseZ values
   const sortedByY = positions
     .map((pos, i) => ({ i, y: pos.y }))
     .sort((a, b) => a.y - b.y);
@@ -69,7 +146,6 @@ const createMiis = () => {
     baseZValues[item.i] = rank / Math.max(1, sortedByY.length - 1);
   });
 
-  // Shuffle characters so each DJ gets a random one
   const shuffledChars = [...CHARACTERS];
   for (let i = shuffledChars.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -90,11 +166,10 @@ const createMiis = () => {
 
   return DJS.map((dj, i) => {
     const { x: homeX, y: homeY } = positions[i];
-    // Depth based on Y position: bottom = close (large, dark), top = far (small, light)
-    const depth = homeY / window.innerHeight; // 0 (top/far) to 1 (bottom/close)
-    const homeScale = 0.9 + depth * 0.9; // 0.4 at top to 1.0 at bottom
-    const homeColorIndex = Math.min(9, Math.round((1 - depth) * 9)); // dark at bottom, light at top
-    const baseZ = baseZValues[i]; // evenly distributed 0-1 for depth scrolling
+    const depth = homeY / window.innerHeight;
+    const homeScale = 0.9 + depth * 0.9;
+    const homeColorIndex = Math.min(9, Math.round((1 - depth) * 9));
+    const baseZ = baseZValues[i];
 
     const isFeatured = dj.bpm === "125-140" && dj.genres.includes("Electronic");
 
@@ -214,21 +289,16 @@ function App() {
   const depthLoopRef = useRef(null);
   const depthOffsetRef = useRef(0);
   const parallax = useParallax(0.02);
-  const genre = "Electronic";
-  const location = "London";
-  const bpm = "125-140";
 
   const hasFilter =
     selectedGenres.length > 0 ||
     selectedLocations.length > 0 ||
     selectedBpms.length > 0;
 
-  // Initialize
   useEffect(() => {
     setMiis(createMiis());
   }, []);
 
-  // Cleanup animation on unmount
   useEffect(() => {
     return () => {
       if (animationRef.current) {
@@ -242,8 +312,6 @@ function App() {
     };
   }, []);
 
-  // --- Depth scroll system (only when no filters) ---
-
   const startDepthLoop = useCallback(() => {
     if (depthLoopRef.current) return;
     const loop = () => {
@@ -253,7 +321,7 @@ function App() {
         depthLoopRef.current = null;
         return;
       }
-      scrollVelRef.current *= 0.94; // damping
+      scrollVelRef.current *= 0.94;
       depthOffsetRef.current += vel;
       setDepthOffset(depthOffsetRef.current);
       depthLoopRef.current = requestAnimationFrame(loop);
@@ -261,10 +329,8 @@ function App() {
     depthLoopRef.current = requestAnimationFrame(loop);
   }, []);
 
-  // Wheel listener — accumulates velocity, starts depth loop
   useEffect(() => {
     if (hasFilter) {
-      // Reset depth scroll when filters are active
       scrollVelRef.current = 0;
       depthOffsetRef.current = 0;
       setDepthOffset(0);
@@ -274,7 +340,6 @@ function App() {
       }
       return;
     }
-    // Desktop: wheel
     const handleWheel = (e) => {
       if (e.target.closest(".section-dropdown")) return;
       e.preventDefault();
@@ -282,23 +347,19 @@ function App() {
       startDepthLoop();
     };
 
-    // Mobile: touch swipe
     let lastTouchY = null;
-
     const handleTouchStart = (e) => {
       lastTouchY = e.touches[0].clientY;
     };
-
     const handleTouchMove = (e) => {
       if (lastTouchY === null) return;
       if (e.target.closest(".section-dropdown")) return;
       e.preventDefault();
-      const deltaY = lastTouchY - e.touches[0].clientY; // inverted so swipe-up = scroll forward
+      const deltaY = lastTouchY - e.touches[0].clientY;
       lastTouchY = e.touches[0].clientY;
       scrollVelRef.current -= deltaY * 0.00005;
       startDepthLoop();
     };
-
     const handleTouchEnd = () => {
       lastTouchY = null;
     };
@@ -307,7 +368,6 @@ function App() {
     window.addEventListener("touchstart", handleTouchStart, { passive: false });
     window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("touchend", handleTouchEnd);
-
     return () => {
       window.removeEventListener("wheel", handleWheel);
       window.removeEventListener("touchstart", handleTouchStart);
@@ -316,19 +376,15 @@ function App() {
     };
   }, [hasFilter, startDepthLoop]);
 
-  // Memoize visible count
   const visibleCount = React.useMemo(
     () => miis.filter((m) => m.visible).length,
     [miis],
   );
 
-  // Basket DJ names
   const basketedDJNames = React.useMemo(
     () => new Set(basket.flatMap((item) => item.djs.map((dj) => dj.name))),
     [basket],
   );
-
-  // --- Animation ---
 
   const startAnimation = useCallback(() => {
     if (animationRef.current) return;
@@ -360,8 +416,6 @@ function App() {
     animationRef.current = requestAnimationFrame(animate);
   }, []);
 
-  // --- Filters ---
-
   const applyFilters = useCallback(
     (newGenres, newLocations, newBpms) => {
       const hasAnyFilter =
@@ -386,12 +440,9 @@ function App() {
         setMiis((prev) => {
           const matchFlags = prev.map((mii) => {
             if (basketedDJNames.has(mii.name)) return false;
-
-            // Always restrict to featured DJs when any filter is active
             const isFeatured =
               mii.bpm === "125-140" && mii.genres.includes("Electronic");
             if (!isFeatured) return false;
-
             const g =
               newGenres.length === 0 ||
               mii.genres.some((x) => newGenres.includes(x));
@@ -433,7 +484,6 @@ function App() {
     [maxDisplayCount, basketedDJNames],
   );
 
-  // Recalculate grid when slider changes
   useEffect(() => {
     if (!hasFilter) return;
     setMiis((prev) => {
@@ -484,13 +534,10 @@ function App() {
     });
   }, [maxDisplayCount, hasFilter, startAnimation]);
 
-  // Re-apply filters when basket changes
   useEffect(() => {
     if (miis.length > 0)
       applyFilters(selectedGenres, selectedLocations, selectedBpms);
   }, [basketedDJNames]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // --- Handlers ---
 
   const handleMouseEnter = (id) => {
     const anim = ANIMATIONS[Math.floor(Math.random() * ANIMATIONS.length)];
@@ -498,7 +545,6 @@ function App() {
   };
 
   const handleAnimationEnd = (id) => {
-    // On mobile, clear the animation class after it plays once
     if (window.innerWidth <= 768) {
       setHoverAnimations((prev) => ({ ...prev, [id]: "" }));
     }
@@ -568,8 +614,6 @@ function App() {
     handleClear();
   };
 
-  // --- Top stats ---
-
   const topGenre =
     selectedLocations.length > 0 || selectedBpms.length > 0
       ? getTopStat(
@@ -619,8 +663,6 @@ function App() {
         )
       : null;
 
-  // --- Render ---
-
   return (
     <div className="plaza">
       <SearchBar
@@ -652,7 +694,6 @@ function App() {
 
       <div className="mii-container">
         {(() => {
-          // Determine visibility first
           let count = 0;
           const items = miis.map((mii) => {
             const isVisible =
@@ -661,7 +702,6 @@ function App() {
             return { mii, isVisible };
           });
 
-          // Precompute per-item values
           const wH = window.innerHeight;
           const wW = window.innerWidth;
           const cx = wW / 2;
@@ -673,8 +713,7 @@ function App() {
             const isFiltered = hasFilter && isVisible;
 
             if (!hasFilter) {
-              // --- Depth-scroll mode --
-              const ez = (((mii.baseZ + depthOffset) % 1) + 1) % 1; // wrap 0-1
+              const ez = (((mii.baseZ + depthOffset) % 1) + 1) % 1;
               const scale =
                 (window.innerWidth > 768 ? 0.25 : 0.1) +
                 ez * (window.innerWidth > 768 ? 0.5 : 0.45);
@@ -683,14 +722,11 @@ function App() {
               const ty =
                 depthTop +
                 Math.pow(ez, window.innerWidth > 768 ? 7 : 8) * depthRange;
-              // Narrow X toward center for far characters + mouse parallax
               const narrowFactor =
                 (window.innerWidth > 768 ? 0.1 : 0.1) + ez * 1.7;
               const parallaxX = parallax.x * (1 - ez) * -200;
               const tx = cx + (mii.homeX - cx) * narrowFactor + parallaxX;
-              // Shadow: stronger for close
               const shadowOpacity = (0.1 + ez * 0.4).toFixed(2);
-              // Fade at wrap boundaries for smooth looping
               let zOpacity = 1;
               if (ez > 0.92) zOpacity = 1 - (ez - 0.92) / 0.08;
               if (ez < 0.08) zOpacity = ez / 0.08;
@@ -709,7 +745,6 @@ function App() {
               };
             }
 
-            // --- Filtered / grid mode (flat, no perspective) ---
             const scale = isFiltered ? gridScale * 0.5 : 1;
             const color = isFiltered ? ROW_COLORS[0] : ROW_COLORS[0];
             const shadowOpacity = "0.4";
@@ -730,11 +765,8 @@ function App() {
             };
           });
 
-          // Sort by depth (only in unfiltered mode)
           if (!hasFilter) {
             computed.sort((a, b) => a.ez - b.ez);
-
-            // Depth blur: blurry at top (far), sharp from bottom 33% onward
             for (let i = 0; i < computed.length; i++) {
               const a = computed[i];
               if (!a.isVisible) continue;
@@ -748,6 +780,7 @@ function App() {
             ({
               mii,
               isVisible,
+              isFiltered,
               scale,
               shadowOpacity,
               tx,
@@ -771,6 +804,11 @@ function App() {
                 }}
                 onAnimationEnd={() => handleAnimationEnd(mii.id)}
               >
+                {/* Flag shadow — only in filtered/grid mode */}
+                {isFiltered && (
+                  <FlagShadow scale={scale} location={mii.location} />
+                )}
+
                 <MiiCharacter character={mii.character} />
                 {isVisible && (
                   <div
