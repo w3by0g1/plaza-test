@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import "./App.css";
 
 import DJS, { ALL_BPMS } from "./data/djs";
@@ -15,35 +21,32 @@ import MiiCharacter from "./components/MiiCharacter";
 import BasketPanel from "./components/BasketPanel";
 import useParallax from "./hooks/useParallax";
 
-// --- Flag shadow component ---
-// Rendered as a flat plane under each filtered character using CSS 3D perspective
-
 // --- Flag mapping by location ---
 const LOCATION_FLAGS = {
-  Berlin: "./FLAG.svg", // France flag — swap for DE when you have it
-  Paris: "./FLAG.svg", // France ✓
-  London: "./FLAG=GB.svg", // Great Britain ✓
-  "New York": "./FLAG=US.svg", // USA ✓
-  "Los Angeles": "./FLAG=US.svg", // USA ✓
-  Melbourne: "./FLAG=AU.svg", // Australia ✓
-  Sydney: "./FLAG=AU.svg", // Australia ✓
-  "São Paulo": "./FLAG=BR.svg", // Brazil ✓
-  "Buenos Aires": null, // Argentina — no flag yet
-  Lisbon: null, // Portugal — no flag yet
-  Barcelona: null, // Spain — no flag yet
-  Montreal: null, // Canada — no flag yet
-  Tokyo: null, // Japan — no flag yet
-  Mumbai: null, // India — no flag yet
-  Singapore: null, // Singapore — no flag yet
-  Nairobi: null, // Kenya — no flag yet
+  Berlin: "./FLAG.svg",
+  Paris: "./FLAG.svg",
+  London: "./FLAG=GB.svg",
+  "New York": "./FLAG=US.svg",
+  "Los Angeles": "./FLAG=US.svg",
+  Melbourne: "./FLAG=AU.svg",
+  Sydney: "./FLAG=AU.svg",
+  "São Paulo": "./FLAG=BR.svg",
+  "Buenos Aires": null,
+  Lisbon: null,
+  Barcelona: null,
+  Montreal: null,
+  Tokyo: null,
+  Mumbai: null,
+  Singapore: null,
+  Nairobi: null,
 };
 
-// --- Flag shadow component ---
-const FlagShadow = ({ scale = 1, location = "" }) => {
+// --- Flag shadow component (memoized) ---
+const FlagShadow = React.memo(({ scale = 1, location = "" }) => {
   const flagW = 72;
   const flagH = 48;
   const src = LOCATION_FLAGS[location];
-  if (!src) return null; // no flag for this location yet
+  if (!src) return null;
 
   return (
     <div
@@ -58,7 +61,6 @@ const FlagShadow = ({ scale = 1, location = "" }) => {
         zIndex: -1,
       }}
     >
-      {/* Flag image */}
       <img
         src={src}
         alt={location}
@@ -68,12 +70,10 @@ const FlagShadow = ({ scale = 1, location = "" }) => {
           display: "block",
           transformOrigin: "50% 0%",
           transform: `rotateX(45deg) scaleX(${1.1 / scale})`,
-          opacity: 0.85,
+          opacity: 0.65,
           imageRendering: "crisp-edges",
         }}
       />
-
-      {/* Gloss overlay */}
       <div
         style={{
           position: "absolute",
@@ -96,10 +96,62 @@ const FlagShadow = ({ scale = 1, location = "" }) => {
       />
     </div>
   );
-};
+});
+
+// --- Mii item component (memoized with custom comparator) ---
+const MiiItem = React.memo(
+  ({
+    mii,
+    hoverAnim,
+    isVisible,
+    isFiltered,
+    hasFilter,
+    scale,
+    shadowOpacity,
+    tx,
+    ty,
+    zOpacity,
+    blurAmount,
+    onMouseEnter,
+    onClick,
+    onAnimationEnd,
+  }) => (
+    <div
+      data-id={mii.id}
+      className={`mii ${hoverAnim || ""} ${!isVisible ? "hidden" : ""} ${!hasFilter ? "on-map" : ""} ${mii.fadeIn ? "fade-in" : ""}`}
+      style={{
+        transform: `translate(calc(${tx}px - 50%), calc(${ty}px - 50%)) scale(${scale})`,
+        opacity: zOpacity,
+        filter: blurAmount > 0 ? `blur(${blurAmount}px)` : "none",
+      }}
+      onMouseEnter={onMouseEnter}
+      onClick={onClick}
+      onAnimationEnd={onAnimationEnd}
+    >
+      {isFiltered && <FlagShadow scale={scale} location={mii.location} />}
+      <MiiCharacter character={mii.character} />
+      {isVisible && (
+        <div className="mii-reflection" style={{ opacity: shadowOpacity }}>
+          <MiiCharacter character={mii.character} />
+        </div>
+      )}
+    </div>
+  ),
+  (prev, next) =>
+    prev.tx === next.tx &&
+    prev.ty === next.ty &&
+    prev.scale === next.scale &&
+    prev.zOpacity === next.zOpacity &&
+    prev.blurAmount === next.blurAmount &&
+    prev.isVisible === next.isVisible &&
+    prev.isFiltered === next.isFiltered &&
+    prev.hasFilter === next.hasFilter &&
+    prev.hoverAnim === next.hoverAnim &&
+    prev.shadowOpacity === next.shadowOpacity &&
+    prev.mii.fadeIn === next.mii.fadeIn,
+);
 
 // --- Mii creation ---
-
 const createMiis = () => {
   const padding = 180;
   const topPadding = 0;
@@ -203,7 +255,6 @@ const createMiis = () => {
 };
 
 // --- Grid position calculator ---
-
 function getGridPositions(count) {
   const padding = 80;
   const topPadding = 220;
@@ -249,7 +300,6 @@ function getGridPositions(count) {
 }
 
 // --- Top stat helpers ---
-
 function getTopStat(djs, filterFn, extractFn) {
   const filtered = djs.filter(filterFn);
   const counts = {};
@@ -271,7 +321,6 @@ function getTopStat(djs, filterFn, extractFn) {
 }
 
 // --- App ---
-
 function App() {
   const [miis, setMiis] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
@@ -323,7 +372,10 @@ function App() {
       }
       scrollVelRef.current *= 0.94;
       depthOffsetRef.current += vel;
-      setDepthOffset(depthOffsetRef.current);
+      // Only trigger re-render if movement is meaningful
+      if (Math.abs(vel) > 0.00005) {
+        setDepthOffset(depthOffsetRef.current);
+      }
       depthLoopRef.current = requestAnimationFrame(loop);
     };
     depthLoopRef.current = requestAnimationFrame(loop);
@@ -376,12 +428,12 @@ function App() {
     };
   }, [hasFilter, startDepthLoop]);
 
-  const visibleCount = React.useMemo(
+  const visibleCount = useMemo(
     () => miis.filter((m) => m.visible).length,
     [miis],
   );
 
-  const basketedDJNames = React.useMemo(
+  const basketedDJNames = useMemo(
     () => new Set(basket.flatMap((item) => item.djs.map((dj) => dj.name))),
     [basket],
   );
@@ -539,50 +591,139 @@ function App() {
       applyFilters(selectedGenres, selectedLocations, selectedBpms);
   }, [basketedDJNames]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleMouseEnter = (id) => {
-    const anim = ANIMATIONS[Math.floor(Math.random() * ANIMATIONS.length)];
-    setHoverAnimations((prev) => ({ ...prev, [id]: anim }));
-  };
+  // Stable per-id handlers
+  const handleMouseEnterById = useCallback((id) => {
+    if (window.innerWidth > 768) {
+      const anim = ANIMATIONS[Math.floor(Math.random() * ANIMATIONS.length)];
+      setHoverAnimations((prev) => ({ ...prev, [id]: anim }));
+    }
+  }, []);
 
-  const handleAnimationEnd = (id) => {
+  const handleClickById = useCallback((id) => {
+    if (window.innerWidth <= 768) {
+      const anim = ANIMATIONS[Math.floor(Math.random() * ANIMATIONS.length)];
+      setHoverAnimations((prev) => ({ ...prev, [id]: anim }));
+    }
+  }, []);
+
+  const handleAnimationEndById = useCallback((id) => {
     if (window.innerWidth <= 768) {
       setHoverAnimations((prev) => ({ ...prev, [id]: "" }));
     }
-  };
+  }, []);
 
-  const handleGenreSelect = (genre) => {
-    const next = selectedGenres.includes(genre)
-      ? selectedGenres.filter((g) => g !== genre)
-      : [...selectedGenres, genre];
-    setSelectedGenres(next);
-    applyFilters(next, selectedLocations, selectedBpms);
-  };
+  // Compute all derived render data in one memoized pass
+  const computedMiis = useMemo(() => {
+    if (miis.length === 0) return [];
 
-  const handleLocationSelect = (location) => {
-    const next = selectedLocations.includes(location)
-      ? selectedLocations.filter((l) => l !== location)
-      : [...selectedLocations, location];
-    setSelectedLocations(next);
-    applyFilters(selectedGenres, next, selectedBpms);
-  };
+    let count = 0;
+    const wH = window.innerHeight;
+    const wW = window.innerWidth;
+    const cx = wW / 2;
+    const depthTop = 0;
+    const depthRange = wH - depthTop;
 
-  const handleBpmRange = (min, max) => {
-    setBpmRange([min, max]);
-    const isFullRange = min === 0 && max === ALL_BPMS.length - 1;
-    const next = isFullRange ? [] : ALL_BPMS.slice(min, max + 1);
-    setSelectedBpms(next);
-    applyFilters(selectedGenres, selectedLocations, next);
-  };
+    const items = miis.map((mii) => {
+      const isVisible = mii.visible && (!hasFilter || count < maxDisplayCount);
+      if (mii.visible && hasFilter) count++;
 
-  const handleClear = () => {
+      const isFiltered = hasFilter && isVisible;
+
+      if (!hasFilter) {
+        const ez = (((mii.baseZ + depthOffset) % 1) + 1) % 1;
+        const scale = (wW > 768 ? 0.25 : 0.1) + ez * (wW > 768 ? 0.5 : 0.45);
+        const ty = depthTop + Math.pow(ez, wW > 768 ? 7 : 8) * depthRange;
+        const narrowFactor = (wW > 768 ? 0.1 : 0.1) + ez * 1.7;
+        const parallaxX = parallax.x * (1 - ez) * -200;
+        const tx = cx + (mii.homeX - cx) * narrowFactor + parallaxX;
+        const shadowOpacity = (0.1 + ez * 0.4).toFixed(2);
+        let zOpacity = 1;
+        if (ez > 0.92) zOpacity = 1 - (ez - 0.92) / 0.08;
+        if (ez < 0.08) zOpacity = ez / 0.08;
+        const sharpThreshold = 0.825;
+        const blurAmount =
+          ez >= sharpThreshold ? 0 : (1 - ez / sharpThreshold) * 20;
+
+        return {
+          mii,
+          isVisible,
+          isFiltered,
+          scale,
+          shadowOpacity,
+          tx,
+          ty,
+          ez,
+          zOpacity,
+          blurAmount,
+        };
+      }
+
+      const scale = isFiltered ? gridScale * 0.5 : 1;
+      const tx = mii.x;
+      const ty = mii.y;
+      return {
+        mii,
+        isVisible,
+        isFiltered,
+        scale,
+        shadowOpacity: "0.4",
+        tx,
+        ty,
+        ez: 0,
+        zOpacity: 1,
+        blurAmount: 0,
+      };
+    });
+
+    if (!hasFilter) {
+      items.sort((a, b) => a.ez - b.ez);
+    }
+
+    return items;
+  }, [miis, depthOffset, hasFilter, gridScale, parallax.x, maxDisplayCount]);
+
+  const handleGenreSelect = useCallback(
+    (genre) => {
+      const next = selectedGenres.includes(genre)
+        ? selectedGenres.filter((g) => g !== genre)
+        : [...selectedGenres, genre];
+      setSelectedGenres(next);
+      applyFilters(next, selectedLocations, selectedBpms);
+    },
+    [applyFilters, selectedGenres, selectedLocations, selectedBpms],
+  );
+
+  const handleLocationSelect = useCallback(
+    (location) => {
+      const next = selectedLocations.includes(location)
+        ? selectedLocations.filter((l) => l !== location)
+        : [...selectedLocations, location];
+      setSelectedLocations(next);
+      applyFilters(selectedGenres, next, selectedBpms);
+    },
+    [applyFilters, selectedGenres, selectedLocations, selectedBpms],
+  );
+
+  const handleBpmRange = useCallback(
+    (min, max) => {
+      setBpmRange([min, max]);
+      const isFullRange = min === 0 && max === ALL_BPMS.length - 1;
+      const next = isFullRange ? [] : ALL_BPMS.slice(min, max + 1);
+      setSelectedBpms(next);
+      applyFilters(selectedGenres, selectedLocations, next);
+    },
+    [applyFilters, selectedGenres, selectedLocations],
+  );
+
+  const handleClear = useCallback(() => {
     setSelectedGenres([]);
     setSelectedLocations([]);
     setSelectedBpms([]);
     setBpmRange([0, ALL_BPMS.length - 1]);
     applyFilters([], [], []);
-  };
+  }, [applyFilters]);
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (!hasFilter) return;
     let count = 0;
     const selectedDJs = miis
@@ -601,67 +742,114 @@ function App() {
         character: mii.character,
       }));
 
-    setBasket((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        genres: [...selectedGenres],
-        locations: [...selectedLocations],
-        bpms: [...selectedBpms],
-        djs: selectedDJs,
-      },
-    ]);
+    setBasket((prev) => {
+      let updated = [...prev];
+
+      // Group selected DJs by location
+      const byLocation = {};
+      selectedDJs.forEach((dj) => {
+        if (!byLocation[dj.location]) byLocation[dj.location] = [];
+        byLocation[dj.location].push(dj);
+      });
+
+      Object.entries(byLocation).forEach(([location, djs]) => {
+        const existingIndex = updated.findIndex(
+          (item) =>
+            item.locations.length === 1 && item.locations[0] === location,
+        );
+
+        if (existingIndex !== -1) {
+          // Merge into existing single-location item
+          const existing = updated[existingIndex];
+          const existingNames = new Set(existing.djs.map((dj) => dj.name));
+          const mergedDJs = [
+            ...existing.djs,
+            ...djs.filter((dj) => !existingNames.has(dj.name)),
+          ];
+          updated[existingIndex] = { ...existing, djs: mergedDJs };
+        } else {
+          // New basket item for this location
+          updated.push({
+            id: Date.now() + Math.random(),
+            genres: [...selectedGenres],
+            locations: [location],
+            bpms: [...selectedBpms],
+            djs,
+          });
+        }
+      });
+
+      return updated;
+    });
+
     handleClear();
-  };
+  }, [
+    hasFilter,
+    miis,
+    maxDisplayCount,
+    selectedGenres,
+    selectedLocations,
+    selectedBpms,
+    handleClear,
+  ]);
 
-  const topGenre =
-    selectedLocations.length > 0 || selectedBpms.length > 0
-      ? getTopStat(
-          DJS,
-          (dj) => {
-            const l =
-              selectedLocations.length === 0 ||
-              selectedLocations.includes(dj.location);
-            const b =
-              selectedBpms.length === 0 || selectedBpms.includes(dj.bpm);
-            return l && b;
-          },
-          (dj) => dj.genres,
-        )
-      : null;
+  const topGenre = useMemo(
+    () =>
+      selectedLocations.length > 0 || selectedBpms.length > 0
+        ? getTopStat(
+            DJS,
+            (dj) => {
+              const l =
+                selectedLocations.length === 0 ||
+                selectedLocations.includes(dj.location);
+              const b =
+                selectedBpms.length === 0 || selectedBpms.includes(dj.bpm);
+              return l && b;
+            },
+            (dj) => dj.genres,
+          )
+        : null,
+    [selectedLocations, selectedBpms],
+  );
 
-  const topLocation =
-    selectedGenres.length > 0 || selectedBpms.length > 0
-      ? getTopStat(
-          DJS,
-          (dj) => {
-            const g =
-              selectedGenres.length === 0 ||
-              dj.genres.some((x) => selectedGenres.includes(x));
-            const b =
-              selectedBpms.length === 0 || selectedBpms.includes(dj.bpm);
-            return g && b;
-          },
-          (dj) => dj.location,
-        )
-      : null;
+  const topLocation = useMemo(
+    () =>
+      selectedGenres.length > 0 || selectedBpms.length > 0
+        ? getTopStat(
+            DJS,
+            (dj) => {
+              const g =
+                selectedGenres.length === 0 ||
+                dj.genres.some((x) => selectedGenres.includes(x));
+              const b =
+                selectedBpms.length === 0 || selectedBpms.includes(dj.bpm);
+              return g && b;
+            },
+            (dj) => dj.location,
+          )
+        : null,
+    [selectedGenres, selectedBpms],
+  );
 
-  const topBpm =
-    selectedGenres.length > 0 || selectedLocations.length > 0
-      ? getTopStat(
-          DJS,
-          (dj) => {
-            const g =
-              selectedGenres.length === 0 ||
-              dj.genres.some((x) => selectedGenres.includes(x));
-            const l =
-              selectedLocations.length === 0 ||
-              selectedLocations.includes(dj.location);
-            return g && l;
-          },
-          (dj) => dj.bpm,
-        )
-      : null;
+  const topBpm = useMemo(
+    () =>
+      selectedGenres.length > 0 || selectedLocations.length > 0
+        ? getTopStat(
+            DJS,
+            (dj) => {
+              const g =
+                selectedGenres.length === 0 ||
+                dj.genres.some((x) => selectedGenres.includes(x));
+              const l =
+                selectedLocations.length === 0 ||
+                selectedLocations.includes(dj.location);
+              return g && l;
+            },
+            (dj) => dj.bpm,
+          )
+        : null,
+    [selectedGenres, selectedLocations],
+  );
 
   return (
     <div className="plaza">
@@ -678,7 +866,14 @@ function App() {
         onBpmRangeChange={handleBpmRange}
         onClear={handleClear}
         hasFilter={hasFilter}
+        basketedDJNames={basketedDJNames}
       />
+
+      {hasFilter && (
+        <div className="available-count">
+          {visibleCount} drop{visibleCount > 1 ? "s" : ""} available
+        </div>
+      )}
 
       {hasFilter && (
         <DJSlider
@@ -693,135 +888,37 @@ function App() {
       )}
 
       <div className="mii-container">
-        {(() => {
-          let count = 0;
-          const items = miis.map((mii) => {
-            const isVisible =
-              mii.visible && (!hasFilter || count < maxDisplayCount);
-            if (mii.visible && hasFilter) count++;
-            return { mii, isVisible };
-          });
-
-          const wH = window.innerHeight;
-          const wW = window.innerWidth;
-          const cx = wW / 2;
-          const depthTop = 0;
-          const depthBottom = window.innerWidth > 768 ? 0 : 0;
-          const depthRange = wH - depthTop - depthBottom;
-
-          const computed = items.map(({ mii, isVisible }) => {
-            const isFiltered = hasFilter && isVisible;
-
-            if (!hasFilter) {
-              const ez = (((mii.baseZ + depthOffset) % 1) + 1) % 1;
-              const scale =
-                (window.innerWidth > 768 ? 0.25 : 0.1) +
-                ez * (window.innerWidth > 768 ? 0.5 : 0.45);
-              const colorIndex = Math.min(9, Math.round((1 - ez) * 9));
-              const color = ROW_COLORS[colorIndex];
-              const ty =
-                depthTop +
-                Math.pow(ez, window.innerWidth > 768 ? 7 : 8) * depthRange;
-              const narrowFactor =
-                (window.innerWidth > 768 ? 0.1 : 0.1) + ez * 1.7;
-              const parallaxX = parallax.x * (1 - ez) * -200;
-              const tx = cx + (mii.homeX - cx) * narrowFactor + parallaxX;
-              const shadowOpacity = (0.1 + ez * 0.4).toFixed(2);
-              let zOpacity = 1;
-              if (ez > 0.92) zOpacity = 1 - (ez - 0.92) / 0.08;
-              if (ez < 0.08) zOpacity = ez / 0.08;
-              return {
-                mii,
-                isVisible,
-                isFiltered,
-                scale,
-                color,
-                shadowOpacity,
-                tx,
-                ty,
-                ez,
-                zOpacity,
-                blurAmount: 0,
-              };
-            }
-
-            const scale = isFiltered ? gridScale * 0.5 : 1;
-            const color = isFiltered ? ROW_COLORS[0] : ROW_COLORS[0];
-            const shadowOpacity = "0.4";
-            const tx = mii.x;
-            const ty = mii.y;
-            return {
-              mii,
-              isVisible,
-              isFiltered,
-              scale,
-              color,
-              shadowOpacity,
-              tx,
-              ty,
-              ez: 0,
-              zOpacity: 1,
-              blurAmount: 0,
-            };
-          });
-
-          if (!hasFilter) {
-            computed.sort((a, b) => a.ez - b.ez);
-            for (let i = 0; i < computed.length; i++) {
-              const a = computed[i];
-              if (!a.isVisible) continue;
-              const sharpThreshold = 0.825;
-              a.blurAmount =
-                a.ez >= sharpThreshold ? 0 : (1 - a.ez / sharpThreshold) * 20;
-            }
-          }
-
-          return computed.map(
-            ({
-              mii,
-              isVisible,
-              isFiltered,
-              scale,
-              shadowOpacity,
-              tx,
-              ty,
-              zOpacity,
-              blurAmount,
-            }) => (
-              <div
-                key={mii.id}
-                className={`mii ${hoverAnimations[mii.id] || ""} ${!isVisible ? "hidden" : ""} ${!hasFilter ? "on-map" : ""} ${mii.fadeIn ? "fade-in" : ""}`}
-                style={{
-                  transform: `translate(calc(${tx}px - 50%), calc(${ty}px - 50%)) scale(${scale})`,
-                  opacity: zOpacity,
-                  filter: blurAmount > 0 ? `blur(${blurAmount}px)` : "none",
-                }}
-                onMouseEnter={() => {
-                  if (window.innerWidth > 768) handleMouseEnter(mii.id);
-                }}
-                onClick={() => {
-                  if (window.innerWidth <= 768) handleMouseEnter(mii.id);
-                }}
-                onAnimationEnd={() => handleAnimationEnd(mii.id)}
-              >
-                {/* Flag shadow — only in filtered/grid mode */}
-                {isFiltered && (
-                  <FlagShadow scale={scale} location={mii.location} />
-                )}
-
-                <MiiCharacter character={mii.character} />
-                {isVisible && (
-                  <div
-                    className="mii-reflection"
-                    style={{ opacity: shadowOpacity }}
-                  >
-                    <MiiCharacter character={mii.character} />
-                  </div>
-                )}
-              </div>
-            ),
-          );
-        })()}
+        {computedMiis.map(
+          ({
+            mii,
+            isVisible,
+            isFiltered,
+            scale,
+            shadowOpacity,
+            tx,
+            ty,
+            zOpacity,
+            blurAmount,
+          }) => (
+            <MiiItem
+              key={mii.id}
+              mii={mii}
+              hoverAnim={hoverAnimations[mii.id]}
+              isVisible={isVisible}
+              isFiltered={isFiltered}
+              hasFilter={hasFilter}
+              scale={scale}
+              shadowOpacity={shadowOpacity}
+              tx={tx}
+              ty={ty}
+              zOpacity={zOpacity}
+              blurAmount={blurAmount}
+              onMouseEnter={() => handleMouseEnterById(mii.id)}
+              onClick={() => handleClickById(mii.id)}
+              onAnimationEnd={() => handleAnimationEndById(mii.id)}
+            />
+          ),
+        )}
       </div>
 
       <div className="tilt-shift-top" />

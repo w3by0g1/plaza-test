@@ -9,16 +9,15 @@ export default function DJSlider({
   selectedLocations,
   selectedBpms,
 }) {
-  const criteria = [
-    ...selectedGenres,
-    ...selectedLocations,
-    ...selectedBpms,
-  ].join(", ");
-
   const count = Math.min(maxDisplayCount, visibleCount);
 
   return (
     <div className="dj-slider-container">
+      <button className="dj-slider-display" onClick={onConfirm}>
+        <span className="dj-slider-number">
+          + Add {count} drop{count > 1 ? "s" : ""}
+        </span>
+      </button>
       <div className="dj-slider-controls">
         <input
           type="range"
@@ -28,13 +27,7 @@ export default function DJSlider({
           onChange={(e) => onSliderChange(parseInt(e.target.value))}
           className="dj-slider"
         />
-        <span className="dj-slider-label">{visibleCount} available</span>
       </div>
-      <button className="dj-slider-display" onClick={onConfirm}>
-        <span className="dj-slider-number">
-          + Add {count} DJ {count > 1 ? "s" : ""}
-        </span>
-      </button>
     </div>
   );
 }

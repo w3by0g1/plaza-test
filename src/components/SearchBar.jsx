@@ -3,12 +3,16 @@ import { ALL_GENRES, ALL_LOCATIONS } from "../data/djs";
 import DJS from "../data/djs";
 import BpmRangeSlider from "./BpmRangeSlider";
 
-// Precompute which locations have featured DJs
-const LOCATIONS_WITH_FEATURED = new Set(
-  DJS.filter(
-    (dj) => dj.bpm === "125-140" && dj.genres.includes("Electronic"),
-  ).map((dj) => dj.location),
-);
+// Precompute featured DJs per location
+const FEATURED_BY_LOCATION = {};
+ALL_LOCATIONS.forEach((location) => {
+  FEATURED_BY_LOCATION[location] = DJS.filter(
+    (dj) =>
+      dj.location === location &&
+      dj.bpm === "125-140" &&
+      dj.genres.includes("Electronic"),
+  ).map((dj) => dj.name);
+});
 
 export default function SearchBar({
   selectedGenres,
@@ -22,8 +26,10 @@ export default function SearchBar({
   onBpmRangeChange,
   onClear,
   hasFilter,
+  basketedDJNames, // Set of DJ names already in the basket
 }) {
   const isFullBpmRange = bpmRange[0] === 0 && bpmRange[1] === 4;
+
   return (
     <div className="airbnb-search-bar">
       <div
@@ -34,13 +40,21 @@ export default function SearchBar({
         </div>
         <div className="section-dropdown">
           {ALL_LOCATIONS.map((location) => {
-            const hasFeatured = LOCATIONS_WITH_FEATURED.has(location);
+            const featuredNames = FEATURED_BY_LOCATION[location] || [];
+            const hasFeatured = featuredNames.length > 0;
+
+            // Disabled if no featured DJs exist, or all featured DJs are basketed
+            const allBasket =
+              hasFeatured &&
+              featuredNames.every((name) => basketedDJNames?.has(name));
+            const isDisabled = !hasFeatured || allBasket;
+
             return (
               <button
                 key={location}
-                className={`dropdown-btn ${selectedLocations.includes(location) ? "active" : ""} ${topLocation === location ? "top" : ""} ${!hasFeatured ? "disabled" : ""}`}
+                className={`dropdown-btn ${selectedLocations.includes(location) ? "active" : ""} ${topLocation === location ? "top" : ""} ${isDisabled ? "disabled" : ""}`}
                 onClick={
-                  hasFeatured ? () => onLocationSelect(location) : undefined
+                  isDisabled ? undefined : () => onLocationSelect(location)
                 }
               >
                 {location}
